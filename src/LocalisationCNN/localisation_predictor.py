@@ -9,8 +9,6 @@ import numpy as np
 
 import LocalisationCNN as cnn
 import InputPipelineHandler as ip
-import utils as utils
-
 
 def load_data(input_filepath):
     with h5py.File(input_filepath, mode = 'r' ) as hdf5:
@@ -22,19 +20,16 @@ def load_data(input_filepath):
     return filenames, indexes
 
 if __name__ == "__main__":
-    base_path = "[INSERT DIRECTORY HERE]"    
-    test_set = "{}/test.h5".format(base_path)
+    base_path = "../../data"    
+    test_set = "{}/train_example.h5".format(base_path)
     batch_size = 50
     
-    model_dir = "[INSERT MODEL DIRECTORY HERE]"
+    model_dir = "../models/LocalCNN_[INSERT_STRING]"
     model_name = "LocalCNN"
-
-    # prepare log file
-    utils.prepare_logfile("localisation_predictor")
 
     # ----------------- TensorFlow stuff -------------------
     # Reset all the tensor variables
-    tf.reset_default_graph()  # We need to do this here before creating any tensor -> Yep, Dataset is a tensor object
+    tf.reset_default_graph()
 
     # Initialize dataset
     ds = ip.InputPipelineHandler(batch_size)
@@ -45,7 +40,6 @@ if __name__ == "__main__":
     
     # Initialize the network
     network = cnn.LocalisationCNN()
-    network.initialize()
     network.restore_model(model_dir, model_name)
     network.predict(test_iterator)
     

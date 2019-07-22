@@ -31,7 +31,7 @@ if __name__ == "__main__":
     base_path = "../../data"
     
     training_set = "{}/train_example.h5".format(base_path)
-    validation_set = "{}/validate_example.h5".format(base_path)
+    validation_set = "{}/train_example.h5".format(base_path) # this is just an example
 
     # prepare log file
     utils.prepare_logfile("localisation_trainer")
@@ -53,5 +53,5 @@ if __name__ == "__main__":
 
     # Initialize the network
     network = cnn.LocalisationCNN(initial_learning_rate, training_keep_prob)
-    network.initialize()
+    network.init_model_dir()
     network.train_network(train_iterator, val_iterator, epochs)
