@@ -1,5 +1,5 @@
 """
-InputPipelineHandler
+Input Pipeline Handler for Localization CNN
 Author: Edward Ferdian
 Date:   01/06/2018
 """
@@ -28,6 +28,8 @@ class InputPipelineHandler:
 
         # Run the mapping functions on each data
         ds = ds.map(self.training_data_load_wrapper, num_parallel_calls=4)
+        
+        # ds = ds.map(_adjust_bbox_wrapper) # we don't do this anymore, the bbox in the dataset has been adjusted during prepare_data
 
         if training:
             ds = ds.map(self.augmentation_wrapper)
@@ -42,12 +44,17 @@ class InputPipelineHandler:
 
     # --- Wrapper functions for the tf.dataset input pipeline ---
     def training_data_load_wrapper(self, fpath, idx):
+        # print('wrapper', idx)
         return tf.py_func(func=self.load_hd5_img_and_bbox_from_sequence, 
             inp=[fpath, idx], Tout=[tf.float32, tf.float32])
 
     def augmentation_wrapper(self, img, coords):
         return tf.py_func(func=self._rotate_img_and_bbox, 
             inp=[img, coords], Tout=[tf.float32, tf.float32])
+
+    # def _adjust_bbox_wrapper(img, coords):
+    #     return tf.py_func(func=self._adjust_bounding_box, 
+    #         inp=[img, coords, bbox_adjustment], Tout=[tf.float32, tf.float32])
 
     # --- end of wrapper functions ---
 
@@ -63,7 +70,7 @@ class InputPipelineHandler:
             ed_img = np.asarray(hl.get('image_seqs')[idx,0,:,:]) # we only need the first frame
             # [n, 4]
             bbox = np.asarray(hl.get('bbox_corners')[idx])
-        # We need to cast this to the proper data type like below
+
         # Default type is double/float64
         return ed_img.astype('float32'), bbox.astype('float32')
 
@@ -105,6 +112,7 @@ class InputPipelineHandler:
         max_y = max(x1[1], x2[1])
 
         new_coords = np.asarray([min_x, min_y, max_x, max_y])
+        
         return new_coords
 
     def rotate_single_point(self, point,angle, centerPoint):
