@@ -7,9 +7,9 @@ import tensorflow as tf
 import h5py
 import numpy as np
 
-import packages.LocalisationCNN as cnn
-import packages.InputPipelineHandler as ip
-import packages.utils as utils
+import LocalisationCNN as cnn
+import InputPipelineHandler as ip
+import utils
 
 # Hyperparameters optimisation variables
 initial_learning_rate = 1e-3
@@ -28,10 +28,10 @@ def load_data(input_filepath):
     return filenames, indexes
 
 if __name__ == "__main__":
-    base_path = "[INSERT DIRECTORY PATH HERE]"
+    base_path = "../../data"
     
-    training_set = "{}/train.h5".format(base_path)
-    validation_set = "{}/validate.h5".format(base_path)
+    training_set = "{}/train_example.h5".format(base_path)
+    validation_set = "{}/validate_example.h5".format(base_path)
 
     # prepare log file
     utils.prepare_logfile("localisation_trainer")

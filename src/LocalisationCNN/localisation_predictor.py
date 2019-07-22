@@ -7,9 +7,9 @@ import tensorflow as tf
 import h5py
 import numpy as np
 
-import packages.LocalisationCNN as cnn
-import packages.InputPipelineHandler as ip
-import packages.utils as utils
+import LocalisationCNN as cnn
+import InputPipelineHandler as ip
+import utils as utils
 
 
 def load_data(input_filepath):
