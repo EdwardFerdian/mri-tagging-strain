@@ -7,8 +7,8 @@ import tensorflow as tf
 import numpy as np
 import time
 import datetime
-import packages.utils as log
-import packages.tf_util
+import utils as log
+import tf_util
 
 class LocalisationCNN:
     # constructor
@@ -20,8 +20,7 @@ class LocalisationCNN:
         self.early_stop_threshold = 15
         self.training_keep_prob = training_keep_prob
 
-        # self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
-        self.sess = tf.Session()
+        self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
         
         # Placeholders & Vars
         self.x = tf.placeholder(tf.float32, [None, self.img_size, self.img_size], name='x1')
@@ -56,17 +55,18 @@ class LocalisationCNN:
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.loss, name='train_op')
 
-    def initialize(self):
         # initialise the variables
         print("Initializing session...")
         init = tf.global_variables_initializer()
         self.sess.run(init)
 
         self.saver = tf.train.Saver()
+
+    def init_model_dir(self):
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
         self.unique_model_name = '{}_{}'.format(self.network_name, timestamp)
 
-        model_dir = "./models/{}".format(self.unique_model_name)
+        model_dir = "../models/{}".format(self.unique_model_name)
         # Do not use .ckpt on the model_path
         self.model_path = "{}/{}".format(model_dir, self.network_name)
 
@@ -77,10 +77,10 @@ class LocalisationCNN:
         self.train_writer = tf.summary.FileWriter(model_dir+'/tensorboard/train', self.sess.graph)
         self.val_writer   = tf.summary.FileWriter(model_dir+'/tensorboard/validation')
 
-        # self.print_model_vars()
-
     def restore_model(self, model_dir, model_name):
         print('Restoring model {}'.format(model_name))
+        #new_saver = tf.train.import_meta_graph('{}/{}.meta'.format(model_dir, model_name))
+        # Because we already have the graph, no need to import the meta graph anymore
         self.saver.restore(self.sess, tf.train.latest_checkpoint(model_dir))
         
         # Check memory usage for the loaded model
@@ -201,6 +201,7 @@ class LocalisationCNN:
         
         total_data = 0
         try:
+            i = 0
             while True:
                 # print(total_data)
                 # Get input and label batch
@@ -222,9 +223,14 @@ class LocalisationCNN:
                 total_loss += cost * n_per_batch
                 total_acc  += acc * n_per_batch
                 total_data += n_per_batch
+
+                print ("\rRead %d rows: [%-30s], batch loss %.3f | Elapsed: %.2f secs." % (total_data, '='*(i//5), cost, time.time()-start_loop), end='')
+                i += 1
+
         except tf.errors.OutOfRangeError:
             # Without .repeat(), iterator is exhaustive. This is a common practice
             # If we want to use repeat, then we need to specify the number of batch, instead of using 'while' loop
+            print ("\rRead %d rows: [%-30s], batch loss %.3f | Elapsed: %.2f secs." % (total_data, '='*30, cost, time.time()-start_loop), end='')
             pass
 
         # calculate the avg loss per epoch
@@ -246,7 +252,7 @@ class LocalisationCNN:
             epoch_name = "Validation"
             self.val_writer.add_summary(summary, epoch_idx)
 
-        msg = "{} {}\t- Loss (MSE): {:.3f}, IoU: {:.3f}, time elapsed  : {:.2f} seconds".format(epoch_idx+1, epoch_name, avg_cost, avg_acc, end_loop-start_loop)
+        msg = "\n{} {}\t- Loss (MSE): {:.3f}, IoU: {:.3f}, time elapsed  : {:.2f} seconds".format(epoch_idx+1, epoch_name, avg_cost, avg_acc, end_loop-start_loop)
         log.info(msg)
         
         return avg_cost, avg_acc
@@ -262,7 +268,8 @@ class LocalisationCNN:
         total_acc = 0
         
         total_data = 0
-        predictions = np.empty((0,4)) # TODO: this is hardcoded for now
+        predictions = np.empty((0,4)) 
+
         try:
             while True:
                 # print(total_data)
@@ -299,7 +306,7 @@ class LocalisationCNN:
         end_loop = time.time()
 
         # Log 
-        msg = "{}\t- Loss (MSE): {:.3f}, IoU: {:.3f}, time elapsed  : {:.2f} seconds".format("Test", avg_cost, avg_acc, end_loop-start_loop)
+        msg = "\n{}\t- Loss (MSE): {:.3f}, IoU: {:.3f}, time elapsed  : {:.2f} seconds".format("Test", avg_cost, avg_acc, end_loop-start_loop)
         log.info(msg)
         return predictions, avg_cost, avg_acc
 
