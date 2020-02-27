@@ -20,7 +20,7 @@ class LocalisationCNN:
         self.early_stop_threshold = 15
         self.training_keep_prob = training_keep_prob
 
-        self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
+        self.sess = tf.Session()
         
         # Placeholders & Vars
         self.x = tf.placeholder(tf.float32, [None, self.img_size, self.img_size], name='x1')
