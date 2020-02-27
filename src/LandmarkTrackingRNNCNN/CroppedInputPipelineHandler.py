@@ -7,7 +7,6 @@ import tensorflow as tf
 import h5py
 import numpy as np
 import math
-import cv2
 
 class CroppedInputPipelineHandler:
     # constructor

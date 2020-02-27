@@ -29,7 +29,7 @@ class LandmarkTrackingNetwork:
 
         self.training_keep_prob = training_keep_prob
 
-        self.sess = tf.Session(config=tf.ConfigProto(log_device_placement=True, allow_soft_placement=True))
+        self.sess = tf.Session()
 
         # --- Placeholders & Vars ---
         # x: (batch_size, time_steps, height, width)
