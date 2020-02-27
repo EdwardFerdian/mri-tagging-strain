@@ -1,9 +1,6 @@
 # mri-tagging-strain
-Deep learning framework for strain estimation on CMR Tagging images
-version 1.0 by Edward Ferdian
 
-This is an implementation of the paper [Fully Automated Myocardial Strain Estimation from Cardiovascular MRI–tagged Images Using a Deep Learning Framework in the UK Biobank](https://pubs.rsna.org/doi/10.1148/ryct.2020190032)
- using Tensorflow 1.8.0. 
+This is an implementation of the paper [Fully Automated Myocardial Strain Estimation from Cardiovascular MRI–tagged Images Using a Deep Learning Framework in the UK Biobank](https://pubs.rsna.org/doi/10.1148/ryct.2020190032) using Tensorflow 1.8.0. 
 
 The framework consists of 2 different networks:
 - Localisation CNN (available): it takes a single MRI Image (256x256) and performs a regression to output bounding box coordinates of the top left and bottom right, enclosing the myocardium with extra 30% space on each side.
@@ -17,7 +14,8 @@ The framework consists of 2 different networks:
 ## 1. Installation
 #### 1.1 Prerequisites
 Please make sure that your machine is equipped with GPUs that support CUDA.
-Python 3.6 is recommended.
+
+Python 3.6 is recommended. Dependencies are listed in requirements.txt
 
 #### 1.2 Requirements
 We provided an example data (HDF5 format) with 1 row of data.
