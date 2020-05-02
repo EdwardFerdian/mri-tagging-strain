@@ -8,7 +8,6 @@ import numpy as np
 import time
 import datetime
 import utils as log
-import tf_util
 
 class LocalisationCNN:
     # constructor
@@ -83,9 +82,6 @@ class LocalisationCNN:
         # Because we already have the graph, no need to import the meta graph anymore
         self.saver.restore(self.sess, tf.train.latest_checkpoint(model_dir))
         
-        # Check memory usage for the loaded model
-        tf_util.print_memory_usage(self.sess)
-
     def create_summary(self, tagname, value):
         """
             Create a scalar summary with the specified tagname
