@@ -71,7 +71,6 @@ class InputPipelineHandler:
             # [n, 4]
             bbox = np.asarray(hl.get('bbox_corners')[idx])
 
-        # Default type is double/float64
         return ed_img.astype('float32'), bbox.astype('float32')
 
     def _resize_function(self, img, coords):
@@ -116,8 +115,10 @@ class InputPipelineHandler:
         return new_coords
 
     def rotate_single_point(self, point,angle, centerPoint):
-        """Rotates a point around another centerPoint. Angle is in degrees.
-        Rotation is counter-clockwise"""
+        """
+            Rotates a point around another centerPoint. Angle is in degrees.
+            Rotation is counter-clockwise
+        """
         angle = math.radians(angle)
         temp_point = point[0]-centerPoint[0] , point[1]-centerPoint[1]
         temp_point = ( temp_point[0]*math.cos(angle)-temp_point[1]*math.sin(angle) , temp_point[0]*math.sin(angle)+temp_point[1]*math.cos(angle))
