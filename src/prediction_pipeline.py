@@ -8,13 +8,14 @@ import prediction_utils as utils
 import gif_utils as gif_utils
 
 # =========== Option ==============
-plot_images = False # plot the first cine to screen
 # ImageMagick is required to save to gif
-save_to_gif = False # save_to_gif is only used when plot_images is True
+show_images = False # show the first cine to screen or save
+save_to_gif = False # save_to_gif is only used when show_images is True
 gif_path = './result'
 
 # ============== Data path ============== 
 data_path = './data'
+file_ext_pattern = '.h5'
 output_path = './result'
 
 # ============== Network models config ==============
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     # traverse the input folder, keep as array to combine later
     files  = os.listdir(data_path)
     # get all the .h5 input filenames
-    input_files =  [f for f in files if ".h5" in f]
+    input_files =  [f for f in files if file_ext_pattern in f]
 
     print('{} files found!'.format(len(input_files)))
     print(input_files)
@@ -68,14 +69,15 @@ if __name__ == "__main__":
         results.calculate_strains()
 
         # 6. Save results
-        results.save_predictions(output_path, input_file)
+        output_prefix = input_file[:-len(file_ext_pattern)] # strip the extension
+        results.save_predictions(output_path, output_prefix)
         
         # ----------- Elapsed time ----------- 
         time_taken = time.time() - start_time
         fps = len(img_sequences) / time_taken
         print("Prediction pipeline - {} cines: {:.2f} seconds ({:.2f} cines/second)".format(len(img_sequences), time_taken, fps))
 
-        if plot_images:
+        if show_images:
             print("Showing/saving first cine case to GIF")
             if not os.path.isdir(gif_path):
                 os.makedirs(gif_path)

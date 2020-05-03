@@ -31,12 +31,8 @@ class PredictionResult:
                 hf[col_name].resize((hf[col_name].shape[0]) + dataset.shape[0], axis = 0)
                 hf[col_name][-dataset.shape[0]:] = dataset
     
-    def save_predictions(self, output_dir, input_file_pattern):
-        new_filename = input_file_pattern
-        if (input_file_pattern.endswith('.h5')):
-            new_filename = input_file_pattern[:-3] # strip the .h5
-
-        output_filename = '{}.result.h5'.format(new_filename)
+    def save_predictions(self, output_dir, output_prefix):
+        output_filename = '{}.result.h5'.format(output_prefix)
         print('Saving prediction as {}'.format(output_filename))
         
         if not os.path.isdir(output_dir):
