@@ -16,8 +16,22 @@ class PredictionResult:
         self.rr_linear_strains = []
         self.cc_linear_strains = []
 
+    def _save_to_h5(self, output_path, col_name, dataset):
+        # convert float64 to float32 to save space
+        if dataset.dtype == 'float64':
+            dataset = np.array(dataset, dtype='float32')
+        
+        with h5py.File(output_path, 'a') as hf:    
+            if col_name not in hf:
+                datashape = (None, )
+                if (dataset.ndim > 1):
+                    datashape = (None, ) + dataset.shape[1:]
+                hf.create_dataset(col_name, data=dataset, maxshape=datashape)
+            else:
+                hf[col_name].resize((hf[col_name].shape[0]) + dataset.shape[0], axis = 0)
+                hf[col_name][-dataset.shape[0]:] = dataset
     
-    def save_predictions(self, output_path, input_file_pattern):
+    def save_predictions(self, output_dir, input_file_pattern):
         new_filename = input_file_pattern
         if (input_file_pattern.endswith('.h5')):
             new_filename = input_file_pattern[:-3] # strip the .h5
@@ -25,19 +39,19 @@ class PredictionResult:
         output_filename = '{}.result.h5'.format(new_filename)
         print('Saving prediction as {}'.format(output_filename))
         
-        if not os.path.isdir(output_path):
-            os.makedirs(output_path)
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir)
 
-        with h5py.File(os.path.join(output_path, output_filename), 'w') as hf:
-            hf.create_dataset("bbox_predictions", data=self.bbox_corners, dtype='float32')
-            hf.create_dataset("landmark_local_predictions", data=self.landmark_sequences, dtype='float32')
-            hf.create_dataset("landmark_predictions", data=self.uncropped_landmark_sequences, dtype='float32')
-            hf.create_dataset("resize_ratios", data=self.resize_ratios, dtype='float32')
-            hf.create_dataset("rr_strains", data=self.rr_strains, dtype='float32')
-            hf.create_dataset("cc_strains", data=self.cc_strains, dtype='float32')
-            hf.create_dataset("rr_linear_strains", data=self.rr_linear_strains, dtype='float32')
-            hf.create_dataset("cc_linear_strains", data=self.cc_linear_strains, dtype='float32')
-        # print('Prediction saved!')
+        output_filepath = os.path.join(output_dir, output_filename)
+
+        self._save_to_h5(output_filepath, "bbox_predictions", self.bbox_corners)
+        self._save_to_h5(output_filepath, "landmark_local_predictions", self.landmark_sequences)
+        self._save_to_h5(output_filepath, "landmark_predictions", self.uncropped_landmark_sequences)
+        self._save_to_h5(output_filepath, "resize_ratios", self.resize_ratios)
+        self._save_to_h5(output_filepath, "rr_strains", self.rr_strains)
+        self._save_to_h5(output_filepath, "cc_strains", self.cc_strains)
+        self._save_to_h5(output_filepath, "rr_linear_strains", self.rr_linear_strains)
+        self._save_to_h5(output_filepath, "cc_linear_strains", self.cc_linear_strains)
 
     def revert_coords_to_original(self):
         # create a zero copy of the landmark sequences
@@ -61,18 +75,14 @@ class PredictionResult:
             new_coords[idx,:,1,:] = new_coords[idx,:,1,:] + low_y
         # end of for loop
         
-        # left_x = np.floor(self.bbox_corners[:,0])
-        # low_y  = np.floor(self.bbox_corners[:,1])
-
-        # new_coords = self.landmark_sequences / self.resize_ratios[:, np.newaxis]
-        # # # add the top left corner
-        # new_coords[:,:,0,:] = new_coords[:,:,0,:] + left_x
-        # new_coords[:,:,1,:] = new_coords[:,:,1,:] + low_y
-
-        
         return new_coords
 
     def calculate_strains(self):
+        """
+            Calculate CC and RR strains, using both the linear and the squared version
+            Circumferential strain (0-6) endo to epi, 7 is global cc
+            Radial strain (0), global/avg radial
+        """
         self.rr_strains = self.calculate_radial_strain(self.uncropped_landmark_sequences, use_linear_strain=False)
         self.rr_linear_strains = self.calculate_radial_strain(self.uncropped_landmark_sequences, use_linear_strain=True)
 
@@ -100,11 +110,12 @@ class PredictionResult:
         stacked_linear_ccs = np.squeeze(stacked_linear_ccs, axis=3)
         self.cc_linear_strains = stacked_linear_ccs
 
-    '''
-        Calculate rr strain for a batch of image sequences
-        flattened_coords => [batch_size, nr_frames, 2, 168]
-    '''
+    
     def calculate_radial_strain(self, coords_batch, use_linear_strain=False):
+        """
+            Calculate rr strain for a batch of image sequences
+            flattened_coords => [batch_size, nr_frames, 2, 168]
+        """
         # point 0 is epi, point 6 is endo, do this for all the 'radials'
         endo_batch = coords_batch[:, :, :, ::7]
         epi_batch =  coords_batch[:, :, :, 6::7]
