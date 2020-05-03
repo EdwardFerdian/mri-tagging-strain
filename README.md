@@ -6,6 +6,11 @@ The framework consists of 2 different networks:
 - Localisation CNN (available): it takes a single MRI Image (256x256) and performs a regression to output bounding box coordinates of the top left and bottom right, enclosing the myocardium with extra 30% space on each side.
 - Tracking Landmark RNNCNN it takes a sequence of MRI image (20 frames) and use shared-weight CNN to extract the spatial features of every frames, which are then passed on to the RNN to incorporate the temporal feature extraction. The RNNCNN network is trained end-to-end.
 
+Please find the pre-trained networks weights here:
+[MRI-tagging network models](https://auckland.figshare.com/collections/Fully_Automated_Myocardial_Strain_Estimation_from_Cardiovascular_MRI_tagged_Images_Using_a_Deep_Learning_Framework_in_the_UK_Biobank/4962155).
+
+If you are using later Tensorflow 1.x version that is not compatible with this version, please refer to Tensorflow backwards compatibility (tf.compat module). 
+
  
 ## Overall framework workflow
 ![Imgur](https://i.imgur.com/HNS3uRB.png)
@@ -32,39 +37,51 @@ Landmark Tracking Network requires the following data column:
 
 #### 2.1 Run the code
 
-###### 2.1.1 Localization Network
+#### 2.1.1 Localization Network
 Training:
-- Open localization_trainer.py
-- Configure the training and validation data path
-- Run the script
-- Model is saved by default under models/ directory
+
+    Open localization_trainer.py
+    Configure the training and validation data path
+    Run the localization_trainer.py script
+    Model is saved by default under models/ directory
 
 Prediction:
-- Open localization_predictor.py
-- Configure the model directory
-- Run the script
+    
+    Open localization_predictor.py
+    Configure the model directory
+    Run the localization_predictor.py script
 
-###### 2.1.2 Landmark Tracking Network
+#### 2.1.2 Landmark Tracking Network
 
 #### Architecture:
 ![Imgur](https://i.imgur.com/15QjrWI.png)
 
 Training:
-- Open landmark_trainer.py
-- Configure the training and validation data path
-- Run the script
-- Model is saved by default under models/ directory
+
+    Open landmark_trainer.py
+    Configure the training and validation data path
+    Run the landmark_trainer.py script
+    Model is saved by default under models/ directory
 
 Prediction:
-- Open landmark_predictor.py
-- Configure the model directory
-- Run the script
 
-#### 2.2 Prediction framework (In progress)
+    Open landmark_predictor.py
+    Configure the model directory
+    Run the landmark_predictor.py script
+
+#### 2.2 Prediction pipeline
 
 The script will run the whole prediction using the 2 networks. The first network predicts the bounding box and localize the region of interests (ROI).
 The ROI will then cropped and resize before passing them to the second network. The second network will predict the local landmark coordinates from the cropped frames.
 Finally, radial and circumferential strains are calculated.
+
+To run the example script, do the following:
+    
+    1. From the project root, create a new directory /model
+    2. Place the pre-trained models in the model directory
+    3. Run prediction_pipeline.py
+
+We provided an option to save the results to a GIF file. For this purpose, ImageMagick is required.
 
 #### 2.3 Example Result
 

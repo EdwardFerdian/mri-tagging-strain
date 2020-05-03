@@ -94,9 +94,7 @@ class LandmarkTrackingNetwork:
         #new_saver = tf.train.import_meta_graph('{}/{}.meta'.format(model_dir, model_name))
         # Because we already have the graph, no need to import the meta graph anymore
         self.saver.restore(self.sess, tf.train.latest_checkpoint(model_dir))
-        
-        # Check memory usage for the loaded model
-        # tf_util.print_memory_usage(self.sess)
+
 
     def build_network(self, image_sequences):
         """
