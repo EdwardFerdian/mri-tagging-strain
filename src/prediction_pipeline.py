@@ -5,7 +5,13 @@ from PredictionResult import PredictionResult
 import LocalisationCNN.loader as local_loader
 import LandmarkTrackingRNNCNN.loader as rnncnn_loader
 import prediction_utils as utils
+import gif_utils as gif_utils
 
+# =========== Option ==============
+plot_images = False # plot the first cine to screen
+# ImageMagick is required to save to gif
+save_to_gif = False # save_to_gif is only used when plot_images is True
+gif_path = './result'
 
 # ============== Data path ============== 
 data_path = './data'
@@ -68,5 +74,13 @@ if __name__ == "__main__":
         time_taken = time.time() - start_time
         fps = len(img_sequences) / time_taken
         print("Prediction pipeline - {} cines: {:.2f} seconds ({:.2f} cines/second)".format(len(img_sequences), time_taken, fps))
+
+        if plot_images:
+            print("Showing/saving first cine case to GIF")
+            if not os.path.isdir(gif_path):
+                os.makedirs(gif_path)
+            gif_filename = '{}/{}-0.gif'.format(gif_path, input_file)
+            gif_utils.prepare_animation(img_sequences[0], cropped_frames[0], results.landmark_sequences[0], results.cc_strains[0], results.rr_strains[0], save_to_gif=save_to_gif, gif_filepath=gif_filename)
+
 
     print("\n====== Done! ======")
