@@ -20,10 +20,10 @@ output_path = './result'
 
 # ============== Network models config ==============
 # 1. Localisation Network
-localisation_network_path  = './model/LocalCNN'
+localisation_network_path  = './models/LocalCNN'
 localisation_network_name = 'localizer'
 # 2. RNNCNN Network
-rnncnn_network_path = './model/LandmarkTrackingRNNCNN'
+rnncnn_network_path = './models/LandmarkTrackingRNNCNN'
 rnncnn_network_name = 'rnncnn'
 
 
