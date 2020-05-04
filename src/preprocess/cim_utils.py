@@ -25,8 +25,8 @@ def read_model_file(model_file, system_file_path, patient_name):
         Grab the series and slice name
     '''
     # read the desc file
-    pattern_ed = "(Series(.+?)Slice(.+?))End-diastolic Frame\s*?.*?(\d+)"
-    pattern_es = "(Series(.+?)Slice(.+?))End-systolic Frame\s*?.*?(\d+)"
+    pattern_ed = r"(Series(.+?)Slice(.+?))End-diastolic Frame\s*?.*?(\d+)"
+    pattern_es = r"(Series(.+?)Slice(.+?))End-systolic Frame\s*?.*?(\d+)"
     reg_ed = re.compile(pattern_ed)
     reg_es = re.compile(pattern_es)
 

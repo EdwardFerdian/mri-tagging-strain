@@ -49,7 +49,7 @@ class DataSetModel:
             slices = np.array(self.slices, dtype=object)
             
             # Patient info
-            _save_to_h5(output_filepath, '_patients', patients, string_dt=True)
+            _save_to_h5(output_filepath, '_cases', patients, string_dt=True)
             _save_to_h5(output_filepath, '_models', models, string_dt=True)
             _save_to_h5(output_filepath, '_slices', slices, string_dt=True)
 
@@ -211,13 +211,15 @@ def resize_image(img, coords, new_size):
     new_coords = coords * ratio_x
     return new_img, new_coords
 
-def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient_name, series_index=0):
+def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, case_name, series_index=0):
     '''
         This is the main extractor function. It does the following:
-        1. Check the system folder for .model file(s)
+        1. From the cim case file, check the system folder for .model file(s)
         2. Check the system folder for the .img_imageptr file
         3. From the .img_imageptr file, retrieve the path to the dicom files, in reference to the series, slice, and index
-        4. For every model found (refer to step 1), retrieve the ED and ES index per series and slice
+            IMAGEPATH in this file refers to your dicom_filepath, please put your dicoms in the designated folders.
+        4. For every cim analysis model found (refer to step 1), retrieve the ED and ES index per series and slice
+            We only process series 1, as series 2 refers to longitudinal
         5. Again, for every model, every time frame, we retrieve the following:
             a. DICOM file path
             b. Image pixel values from DICOM file
@@ -231,24 +233,27 @@ def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient
 
     dataset_model = DataSetModel()
 
-    # read out the system folder to check which frame is ES and ED
-    system_dir = "{}/{}/system".format(cim_filepath, patient_name)
+    # 0. read out the system folder to check which frame is ES and ED
+    system_dir = "{}/{}/system".format(cim_filepath, case_name)
     files = get_filepaths(system_dir)
 
-    #print("Checking system folder for model description files...")
+    # 1 .print("Checking system folder for model description files...")
     model_files = [f for f in files if ".model" in f]
-    # Get 1 ptr file from a case
+    
+    # 2. Get 1 ptr file from a case
     ptr_file = [f for f in files if f.endswith(".img_imageptr")][0]
-    #print(ptr_file)
+
+    # 3. Get the dicom path list from the pointer file
     datatype = [('series', '<i4'), ('slice', '<i4'), ('index', '<i4'), ('path', 'U255')]
     image_files = np.genfromtxt(ptr_file, delimiter='\t', names='series, slice, index, path', skip_header=1, dtype=datatype)
     
     condition = image_files['series'] == series_index
     image_files = image_files[condition]
     
+    # 4. Get the ED and ES info from the model file
     models = []
     for model_file in model_files:
-        mod = cutils.read_model_file(model_file, system_dir, patient_name)
+        mod = cutils.read_model_file(model_file, system_dir, case_name)
         models.append(mod)
 
     for model in models:
@@ -258,7 +263,7 @@ def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient
                 # print('skipping series_2')
                 continue
 
-            data_path = "{}/{}/{}/{}".format(cim_filepath, patient_name, model.model_name, series.lower())
+            data_path = "{}/{}/{}/{}".format(cim_filepath, case_name, model.model_name, series.lower())
 
             slice_files = get_filepaths(data_path)
             all_frame_files = [f for f in slice_files if "_strain.dat" in f]
@@ -269,17 +274,20 @@ def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient
             cropped_coords = []
             regions = []
             
+            # bounding box corners are the same throughout all frames
             corners = (0,0,0,0)
             px_space = 0
 
             nr_frames = len(all_frame_files)  # actual nr of frames of the sequence
             if (nr_frames > 0 and nr_frames != max_frame):
+                # Print out any model that does not have max_frame (default: 20)
                 print('Number of frames:', nr_frames)
 
+            # Go through every frame, any frame exceeding max_frame won't be read
             for frame_idx in range(0,max_frame):
                 # read the dat file
-                #file_prefix = "{}/{}_{}_".format(data_path, patient_name, (frame_idx+1)) # Linux version
-                file_prefix = "{}\\{}_{}_".format(data_path, patient_name, (frame_idx+1)) # Windows version
+                #file_prefix = "{}/{}_{}_".format(data_path, case_name, (frame_idx+1)) # Linux version
+                file_prefix = "{}\\{}_{}_".format(data_path, case_name, (frame_idx+1)) # Windows version
                 
                 # read the dicom file
                 if (nr_frames < max_frame and nr_frames > 0 and frame_idx >= nr_frames):
@@ -307,7 +315,7 @@ def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient
                         regions.append(tmp_regions)
                     else:
                         if (frame_idx == 0): 
-                            #print(patient_name, model.model_name, series, "The first image does not exist, don't bother, continue to next sequence")
+                            #print(case_name, model.model_name, series, "The first image does not exist, don't bother, continue to next sequence")
                             break # don't bother continue on this slice
                         
                         # print('Missing image...', file_prefix)
@@ -318,8 +326,9 @@ def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient
                         cropped_coords.append(np.zeros((2,168)))
                         regions.append(np.zeros(168))
 
+            # after the long else if
             if len(imgs) > 0:
-                dataset_model.patients.append(patient_name)
+                dataset_model.patients.append(case_name)
                 dataset_model.model_names.append(model.model_name)
                 dataset_model.slices.append(series.lower())
                 
@@ -393,25 +402,29 @@ def extract_img_coords_data(img_filepath, fileprefix, model, frame_idx, num, ser
             return images, coords, corners, ConstPixelSpacing[0], regions
     return None, None, None, None, None
 
-
+if __name__ == "__main__":  
+    cim_filepath = "C:/Users/efer502/Documents/ukb_tags/40casesICC-EL+AB_after cleaning 1"
+    dicom_filepath = "C:/Users/efer502/Documents/ukb_tags/40cases_pat_data"
     
+    save_patient_info = False
+    output_path = "./data"
+    output_file = 'test.h5'
+    output_filepath = os.path.join(output_path, output_file)
 
-def prepare_sequence_data(cim_filepath, dicom_filepath, output_path, output_file, save_patient_info=False):
-    '''
-        Retrieve and save all the needed information from the image filepath and cim filepath
-    '''
+    if not os.path.isdir(output_path):
+        os.makedirs(output_path)
+
     # Scan all files within the CIM folder
     print('Scanning folder:', cim_filepath)
     subfolders = [f.name for f in os.scandir(cim_filepath) if f.is_dir() ]  
     print('Total patients:',len(subfolders))
 
     total_saved = 0
+    for index, case_name in enumerate(subfolders):
+        print ((index+1),': Processing ', case_name)
+        
 
-    for index, patient_name in enumerate(subfolders):
-        print ((index+1),': Processing ', patient_name)
-        output_filepath = os.path.join(output_path, output_file)
-
-        dm = generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient_name)
+        dm = generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, case_name)
         dm.save(output_filepath, save_patient_info=save_patient_info)
 
         total_saved += len(dm.patients)
@@ -420,23 +433,5 @@ def prepare_sequence_data(cim_filepath, dicom_filepath, output_path, output_file
         
     print('Total image sequences saved:', total_saved)
     print('==============================\n')
-    
-    
-
-
-if __name__ == "__main__":  
-    cim_filepath = "C:/Users/efer502/Documents/ukb_tags/40casesICC-EL+AB_after cleaning 1"
-    dicom_filepath = "C:/Users/efer502/Documents/ukb_tags/40cases_pat_data"
-    
-    output_path = "./data"
-    output_file = 'test.h5'
-
-    save_patient_info = False
-
-    if not os.path.isdir(output_path):
-        os.makedirs(output_path)
-
-    prepare_sequence_data(cim_filepath, dicom_filepath, output_path, output_file, save_patient_info)
-  
     print('Done!')
 
