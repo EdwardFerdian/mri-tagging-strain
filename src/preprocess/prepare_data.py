@@ -21,11 +21,37 @@ class DataSetModel:
 
         self.px_spaces = []
         self.bbox_corners = []
-        self.centroid_widths = []
+        # self.centroid_widths = []
         self.regions = []
         
         self.ed_frame_idx = []
         self.es_frame_idx = []
+
+    def save(self, output_filepath, save_patient_info=False):
+        # For the localisation network
+        _save_to_h5(output_filepath, 'image_seqs', self.image_seqs)
+        _save_to_h5(output_filepath, 'landmark_coords', self.landmark_coords)
+        _save_to_h5(output_filepath, 'bbox_corners', self.bbox_corners)
+        _save_to_h5(output_filepath, 'px_spaces', self.px_spaces)
+
+        # This is for the landmark tracking network
+        _save_to_h5(output_filepath, 'cropped_image_seqs', self.cropped_image_seqs)
+        _save_to_h5(output_filepath, 'cropped_landmark_coords', self.cropped_landmark_coords)
+        
+        # Other stuff
+        _save_to_h5(output_filepath, 'ed_frame_idx', self.ed_frame_idx)
+        _save_to_h5(output_filepath, 'es_frame_idx', self.es_frame_idx)
+        _save_to_h5(output_filepath, 'regions', self.regions)
+
+        if save_patient_info:    
+            patients = np.array(self.patients, dtype=object)
+            models = np.array(self.model_names, dtype=object)
+            slices = np.array(self.slices, dtype=object)
+            
+            # Patient info
+            _save_to_h5(output_filepath, '_patients', patients, string_dt=True)
+            _save_to_h5(output_filepath, '_models', models, string_dt=True)
+            _save_to_h5(output_filepath, '_slices', slices, string_dt=True)
 
 def _save_to_h5(output_path, col_name, dataset, string_dt=False):
     dataset = np.asarray(dataset)
@@ -136,8 +162,8 @@ def assure_single_corner_within_img(corners):
     corners[0] = np.maximum(corners[0],0) # set negative value to zero
     corners[1] = np.maximum(corners[1],0) # set negative value to zero
 
-    corners[2] = np.minimum(corners[2],original_size) # set exceeding value to original_size
-    corners[3] = np.minimum(corners[3],original_size)
+    corners[2] = np.minimum(corners[2],256) # set exceeding value to original_size
+    corners[3] = np.minimum(corners[3],256)
     return corners
 
 def crop_image_bbox(img, coords, bbox_corners):
@@ -151,41 +177,6 @@ def crop_image_bbox(img, coords, bbox_corners):
     right_x = math.ceil(bbox_corners[2])
     high_y  = math.ceil(bbox_corners[3])
 
-    # special case where low_x or left_x is negative, we need to add some padding
-    pad_x = 0
-    pad_y = 0
-    if (left_x < 0):
-        pad_x = 0 - left_x
-    if (low_y < 0):
-        pad_y = 0 - low_y
-    
-    if (pad_x == 0 and pad_y == 0):
-        coords[0] = coords[0] - left_x
-        coords[1] = coords[1] - low_y
-        return img[low_y:high_y, left_x:right_x ], coords
-    else:
-        print('Cropping image with extra padding due to negative start index')
-        new_img = np.pad(img, ((pad_y,pad_y),(pad_x,pad_x)), 'constant')
-        coords[0] = coords[0] - left_x + pad_y
-        coords[1] = coords[1] - low_y + pad_x
-        return new_img[pad_y+low_y:pad_y+high_y, pad_x+left_x:pad_x+right_x ], coords
-
-
-def crop_image_centroid(img, coords, center_x, center_y, crop_size):
-    '''
-        Crop image based on centroid
-        Crop size is in pixels, we assume width and height are the same size.
-    '''
-    half_size = crop_size / 2
-    #print("cropsize", crop_size)
-    #print("halfsize", half_size)
-
-    left_x = math.floor(center_x - half_size)
-    right_x = math.ceil(center_x + half_size)
-    
-    low_y = math.floor(center_y - half_size)
-    high_y = math.ceil(center_y + half_size)
-    
     # special case where low_x or left_x is negative, we need to add some padding
     pad_x = 0
     pad_y = 0
@@ -220,7 +211,7 @@ def resize_image(img, coords, new_size):
     new_coords = coords * ratio_x
     return new_img, new_coords
 
-def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name, series_index=0):
+def generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient_name, series_index=0):
     '''
         This is the main extractor function. It does the following:
         1. Check the system folder for .model file(s)
@@ -232,7 +223,7 @@ def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name,
             b. Image pixel values from DICOM file
             c. Landmark coordinates from _strain.dat file
             d. Landmark regions from _strain.dat file
-            e. Append to dataset_model
+            e. Return a dataset_model
     '''
     max_frame = 20
     img_size  = 256
@@ -241,7 +232,7 @@ def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name,
     dataset_model = DataSetModel()
 
     # read out the system folder to check which frame is ES and ED
-    system_dir = "{}/{}/system".format(filepath, patient_name)
+    system_dir = "{}/{}/system".format(cim_filepath, patient_name)
     files = get_filepaths(system_dir)
 
     #print("Checking system folder for model description files...")
@@ -255,7 +246,6 @@ def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name,
     condition = image_files['series'] == series_index
     image_files = image_files[condition]
     
-    
     models = []
     for model_file in model_files:
         mod = cutils.read_model_file(model_file, system_dir, patient_name)
@@ -268,7 +258,7 @@ def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name,
                 # print('skipping series_2')
                 continue
 
-            data_path = "{}/{}/{}/{}".format(filepath, patient_name, model.model_name, series.lower())
+            data_path = "{}/{}/{}/{}".format(cim_filepath, patient_name, model.model_name, series.lower())
 
             slice_files = get_filepaths(data_path)
             all_frame_files = [f for f in slice_files if "_strain.dat" in f]
@@ -302,15 +292,15 @@ def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name,
                     cropped_coords.append(np.zeros((2,168)))
                     regions.append(np.zeros(168))
                 else:
-                    tmp_img, tmp_coords, corners, px_space, tmp_regions = prepare_binary(img_filepath, file_prefix, model, frame_idx, num, series, image_files, all_frame_files, corners)
-                    
-                    # Resample the image and recalculate the coords
-                    tmp_crop_img, tmp_crop_coords = crop_image_bbox(tmp_img, tmp_coords, corners)            
-                    tmp_crop_img, tmp_crop_coords = resize_image(tmp_crop_img, tmp_crop_coords, crop_size)
+                    tmp_img, tmp_coords, corners, px_space, tmp_regions = extract_img_coords_data(dicom_filepath, file_prefix, model, frame_idx, num, series, image_files, all_frame_files, corners)
                     
                     if tmp_img is not None and tmp_coords is not None:
                         imgs.append(tmp_img)
                         coords.append(tmp_coords)
+
+                        # Resample the image and recalculate the coords
+                        tmp_crop_img, tmp_crop_coords = crop_image_bbox(tmp_img, tmp_coords, corners)            
+                        tmp_crop_img, tmp_crop_coords = resize_image(tmp_crop_img, tmp_crop_coords, crop_size)
                         
                         cropped_imgs.append(tmp_crop_img)
                         cropped_coords.append(tmp_crop_coords)
@@ -337,7 +327,7 @@ def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name,
                 dataset_model.landmark_coords.append(coords)               
                 dataset_model.px_spaces.append(px_space)
                 
-                dataset_model.bbox_corners.append(corners) # without the centroid, we always get this now
+                dataset_model.bbox_corners.append(corners)
                 dataset_model.regions.append(regions)
 
                 dataset_model.ed_frame_idx.append(model.ed_indexes[num])
@@ -351,7 +341,7 @@ def generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name,
     return dataset_model
 
                 
-def prepare_binary(img_filepath, fileprefix, model, frame_idx, num, series, image_files, all_frame_files, bbox_corners):
+def extract_img_coords_data(img_filepath, fileprefix, model, frame_idx, num, series, image_files, all_frame_files, bbox_corners):
     '''
         Retrieve the following information from the DICOM file and _strain.dat file
         - dicom pixel values
@@ -362,12 +352,8 @@ def prepare_binary(img_filepath, fileprefix, model, frame_idx, num, series, imag
     '''
     plot_file = [f for f in all_frame_files if f.startswith(fileprefix)]
     
-    # print(all_frame_files)
-    # print(fileprefix)
-    # print('len(plot_file)',len(plot_file))
     # Sometimes the ed_file name does not match the pattern, it is good to check like this
-    if (len(plot_file) > 0):
-        # print('check DICOM image')
+    if (len(plot_file) > 0):    
         # check DICOM image
         tmp = image_files[image_files['series']==(model.series_nrs[num]-1)]
         tmp = tmp[tmp['slice']==(model.slice_nrs[num]-1)]
@@ -404,98 +390,53 @@ def prepare_binary(img_filepath, fileprefix, model, frame_idx, num, series, imag
                 # center_x, center_y = centroid[0], centroid[1]
                 corners = bbox_corners
 
-            
-
-            # print(ConstPixelSpacing[0])
-            # print(bbox_points)
             return images, coords, corners, ConstPixelSpacing[0], regions
     return None, None, None, None, None
 
 
-def save_to_h5(output_filepath, dm, start_idx, end_idx):
-    
-    
-    patients = np.array(dm.patients, dtype=object)
-    models = np.array(dm.model_names, dtype=object)
-    slices = np.array(dm.slices, dtype=object)
-    
-    # Patient info
-    _save_to_h5(output_filepath, '_patients', patients, string_dt=True)
-    _save_to_h5(output_filepath, '_models', models, string_dt=True)
-    _save_to_h5(output_filepath, '_slices', slices, string_dt=True)
-    
-    # For the localisation network
-    _save_to_h5(output_filepath, 'image_seqs', dm.image_seqs)
-    _save_to_h5(output_filepath, 'landmark_coords', dm.landmark_coords)
-    _save_to_h5(output_filepath, 'bbox_corners', dm.bbox_corners)
-    _save_to_h5(output_filepath, 'px_spaces', dm.px_spaces)
-
-    # This is for the landmark tracking network
-    _save_to_h5(output_filepath, 'cropped_image_seqs', dm.cropped_image_seqs)
-    _save_to_h5(output_filepath, 'cropped_landmark_coords', dm.cropped_landmark_coords)
-    
-    # Other stuff
-    _save_to_h5(output_filepath, 'ed_frame_idx', dm.ed_frame_idx)
-    _save_to_h5(output_filepath, 'es_frame_idx', dm.es_frame_idx)
-    _save_to_h5(output_filepath, 'regions', dm.regions)
-
     
 
-def prepare_sequence_data(filepath, img_filepath, output_path, output_file):
+def prepare_sequence_data(cim_filepath, dicom_filepath, output_path, output_file, save_patient_info=False):
     '''
         Retrieve and save all the needed information from the image filepath and cim filepath
-        The file is saved in the output_path with a certain prefix
     '''
-    # For all files
-    print('Scanning folder:', filepath)
-    subfolders = [f.name for f in os.scandir(filepath) if f.is_dir() ]  
+    # Scan all files within the CIM folder
+    print('Scanning folder:', cim_filepath)
+    subfolders = [f.name for f in os.scandir(cim_filepath) if f.is_dir() ]  
     print('Total patients:',len(subfolders))
 
     total_saved = 0
 
-    
     for index, patient_name in enumerate(subfolders):
         print ((index+1),': Processing ', patient_name)
-        # dm = DataSetModel() 
-        dm = generate_image_from_cim_analysis_files(filepath, img_filepath, patient_name)
-
         output_filepath = os.path.join(output_path, output_file)
-        save_to_h5(output_filepath, dm, 0, len(dm.patients))
+
+        dm = generate_image_from_cim_analysis_files(cim_filepath, dicom_filepath, patient_name)
+        dm.save(output_filepath, save_patient_info=save_patient_info)
 
         total_saved += len(dm.patients)
         if index > 0:
             break
         
-
     print('Total image sequences saved:', total_saved)
     print('==============================\n')
     
     
 
 
-if __name__ == "__main__":
-    
-    original_size = 256
-
-    cropping = False # when True, the data is cropped based on the bounding box, coordinates are adjusted accordingly
-    img_size = 128 # Resampled image size (used when cropping=True)
-
-    if not cropping:
-        # if not cropping, we set the img_size to the original. This is used in frame padding 
-        print('No cropping, image size is set to 256x256')
-        img_size = original_size
-
-    base_path = "C:/Users/efer502/Documents/ukb_tags/40casesICC-EL+AB_after cleaning 1"
+if __name__ == "__main__":  
+    cim_filepath = "C:/Users/efer502/Documents/ukb_tags/40casesICC-EL+AB_after cleaning 1"
     dicom_filepath = "C:/Users/efer502/Documents/ukb_tags/40cases_pat_data"
+    
     output_path = "./data"
+    output_file = 'test.h5'
 
-    h5file = 'test.h5'
-    cim_filepath = base_path
+    save_patient_info = False
 
     if not os.path.isdir(output_path):
         os.makedirs(output_path)
 
-    prepare_sequence_data(cim_filepath, dicom_filepath, output_path, h5file)
+    prepare_sequence_data(cim_filepath, dicom_filepath, output_path, output_file, save_patient_info)
   
     print('Done!')
 
