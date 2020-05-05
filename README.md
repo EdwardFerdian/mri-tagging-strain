@@ -33,6 +33,10 @@ Landmark Tracking Network requires the following data column:
 - cropped_image_seqs - Cropped image sequence using the provided bounding box n_rows x 20 frames x 128 x 128
 - cropped_landmark_coords - 168 Landmark coordinates on the myocardium n_rows x 20 frames x 2 x 168
 
+#### 1.3 Prepare data
+We provided a script to prepare the dataset from CIM_TAG_2D v6.0 output files and Dicom images. Configure these two directories first within the prepare_data.py then run the script.
+
+
 ## 2. Usage
 
 #### 2.1 Run the code
