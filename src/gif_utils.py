@@ -16,8 +16,8 @@ def _update(i, imgs, cropped_imgs, points):
     # Update the line and the axes (with a new xlabel). Return a tuple of
     # "artists" that have to be redrawn for this frame.
     ax1.set_title('Input cine - Frame {}'.format(i+1))
-    ax2.set_title('Local ROI')
-    ax3.set_title('Prediction')
+    ax2.set_title('Local ROI prediction')
+    ax3.set_title('Landmarks prediction')
 
     ax1.imshow(imgs[i], cmap='gray')
     ax2.imshow(cropped_imgs[i], cmap='gray')
