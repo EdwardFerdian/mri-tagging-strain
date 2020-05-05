@@ -77,8 +77,8 @@ Finally, radial and circumferential strains are calculated.
 
 To run the example script, do the following:
     
-    1. From the project root, create a new directory /model
-    2. Place the pre-trained models in the model directory
+    1. From the project root, create a new directory /models
+    2. Place the pre-trained models in the models directory
     3. Run prediction_pipeline.py
 
 We provided an option to save the results to a GIF file. For this purpose, ImageMagick is required.

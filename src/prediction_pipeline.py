@@ -17,13 +17,14 @@ gif_path = './result'
 data_path = './data'
 file_ext_pattern = '.h5'
 output_path = './result'
+batch_size = 20
 
 # ============== Network models config ==============
 # 1. Localisation Network
-localisation_network_path  = './model/LocalCNN'
+localisation_network_path  = './models/LocalCNN'
 localisation_network_name = 'localizer'
 # 2. RNNCNN Network
-rnncnn_network_path = './model/LandmarkTrackingRNNCNN'
+rnncnn_network_path = './models/LandmarkTrackingRNNCNN'
 rnncnn_network_name = 'rnncnn'
 
 
@@ -49,39 +50,48 @@ if __name__ == "__main__":
 
         # 0. Load the data
         input_filepath = os.path.join(data_path,input_file)
-        img_sequences = utils.load_dataset(input_filepath)
+        # Check datasize for batching
+        data_size = utils.get_dataset_len(input_filepath)
         
-        # 1. Predict bounding box
-        # we only need the ED frames for first pipeline
-        ed_imgs = img_sequences[:,0,:,:] # frame t0 only, ED frame
-        corners = localnet.predict_corners(ed_imgs)
-        
-        # 2. Localize the image based on predicted bounding box
-        cropped_frames, resize_ratios = utils.crop_and_resize_all_frames(img_sequences, corners)
+        # Do the prediction per batch
+        for pos in range(0, data_size, batch_size):
+            print(f"\rProcessed {pos}/{data_size} ...", end='\r')
+            img_sequences = utils.load_dataset(input_filepath, pos, batch_size)
+            
+            # 1. Predict bounding box
+            # we only need the ED frames for first pipeline
+            ed_imgs = img_sequences[:,0,:,:] # frame t0 only, ED frame
+            corners = localnet.predict_corners(ed_imgs)
+            
+            # 2. Localize the image based on predicted bounding box
+            cropped_frames, resize_ratios = utils.crop_and_resize_all_frames(img_sequences, corners)
 
-        # 3. Predict localized landmarks 
-        landmarks = landmarknet.predict_landmark_sequences(cropped_frames)
-        
-        # 4. Prepare to save results
-        results = PredictionResult(corners, landmarks, resize_ratios)
-        
-        # 5. Calculate strains
-        results.calculate_strains()
+            # 3. Predict localized landmarks 
+            landmarks = landmarknet.predict_landmark_sequences(cropped_frames)
+            
+            # 4. Prepare to save results
+            results = PredictionResult(corners, landmarks, resize_ratios)
+            
+            # 5. Calculate strains
+            results.calculate_strains()
 
-        # 6. Save results
-        output_prefix = input_file[:-len(file_ext_pattern)] # strip the extension
-        results.save_predictions(output_path, output_prefix)
-        
+            # 6. Save results
+            output_prefix = input_file[:-len(file_ext_pattern)] # strip the extension
+            results.save_predictions(output_path, output_prefix)
+        # End of batch loop    
+        print(f"\rProcessed {data_size}/{data_size} ...")
         # ----------- Elapsed time ----------- 
         time_taken = time.time() - start_time
-        fps = len(img_sequences) / time_taken
-        print("Prediction pipeline - {} cines: {:.2f} seconds ({:.2f} cines/second)".format(len(img_sequences), time_taken, fps))
+        fps = data_size / time_taken
+        print(f"Prediction saved as {output_path}/{output_prefix}")
+        print("Prediction pipeline - {} cines: {:.2f} seconds ({:.2f} cines/second)".format(data_size, time_taken, fps))
 
         if show_images:
+            # Just an example, we do this on the first case of the  last batch
             print("Showing/saving first cine case to GIF")
             if not os.path.isdir(gif_path):
                 os.makedirs(gif_path)
-            gif_filename = '{}/{}-0.gif'.format(gif_path, input_file)
+            gif_filename = f'{gif_path}/{input_file}-0.gif'
             gif_utils.prepare_animation(img_sequences[0], cropped_frames[0], results.landmark_sequences[0], results.cc_strains[0], results.rr_strains[0], save_to_gif=save_to_gif, gif_filepath=gif_filename)
 
 
