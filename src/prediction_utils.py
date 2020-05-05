@@ -5,10 +5,14 @@ import os
 import math
 import cv2
 
-
-def load_dataset(filepath):
+def get_dataset_len(filepath):
     with h5py.File(filepath, 'r') as hl:
-        img_sequences = np.asarray(hl.get('image_seqs')) 
+        data_size = hl['image_seqs'].shape[0]
+    return data_size
+
+def load_dataset(filepath, start_index, batch_size):
+    with h5py.File(filepath, 'r') as hl:
+        img_sequences = np.asarray(hl.get('image_seqs'))[start_index:start_index+batch_size]
     return img_sequences
 
 def crop_image_bbox(img, bbox_corners):

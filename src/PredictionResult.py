@@ -33,7 +33,7 @@ class PredictionResult:
     
     def save_predictions(self, output_dir, output_prefix):
         output_filename = '{}.result.h5'.format(output_prefix)
-        print('Saving prediction as {}'.format(output_filename))
+        # print('Saving prediction as {}'.format(output_filename))
         
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
