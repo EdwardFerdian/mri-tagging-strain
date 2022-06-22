@@ -1,6 +1,6 @@
 h5py==2.10.0
 matplotlib==3.1.3
-numpy==1.18.1
+numpy==1.22.0
 opencv-python==4.2.0.32
 pydicom==1.4.2
 scikit-image==0.16.2
