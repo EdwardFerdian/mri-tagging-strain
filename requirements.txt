@@ -4,4 +4,4 @@ numpy==1.18.1
 opencv-python==4.2.0.32
 pydicom==1.4.2
 scikit-image==0.16.2
-scipy==1.4.1
+scipy==1.10.0
